@@ -1,0 +1,29 @@
+steps:
+  # Step 1: Build the container image using the optimized Dockerfile
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Build Image'
+    args: ['build', '-t', 'us-central1-docker.pkg.dev/launchedberry/gmail-finance-manager/app:$COMMIT_SHA', '.']
+
+  # Step 2: Push the container image to Google Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Push Image'
+    args: ['push', 'us-central1-docker.pkg.dev/launchedberry/gmail-finance-manager/app:$COMMIT_SHA']
+
+  # Step 3: Deploy the container image to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'Deploy to Cloud Run'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'gmail-finance-manager'
+      - '--image=us-central1-docker.pkg.dev/launchedberry/gmail-finance-manager/app:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      # This is the updated, critical step to mount the unified secret as a .env file
+      - '--set-secrets=--from-file=latest'
+      - '--set-secrets=/app/.env=databerry-prod-env:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
